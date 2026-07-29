@@ -121,6 +121,26 @@ async function checkSession(token) {
   return res.json();
 }
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function waitForCompleted(token, attempts = 20, delayMs = 1500) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const data = await checkSession(token);
+      if (data.success && data.status === "completed" && !data.used) {
+        return data;
+      }
+      if (data.success && data.used) {
+        return { ...data, _used: true };
+      }
+    } catch (_) {}
+    await sleep(delayMs);
+  }
+  return null;
+}
+
 async function startCheckpoint() {
   setBtnLoading(checkpointBtn, true);
   try {
@@ -246,12 +266,45 @@ retryBtn.addEventListener("click", () => {
     return;
   }
 
+  if (urlToken) {
+    const notice = document.querySelector("#gate-state .notice");
+    if (notice) {
+      notice.innerHTML = "Verifying checkpoint… please wait a few seconds.";
+    }
+    showState(gateState);
+    setBtnLoading(checkpointBtn, true);
+
+    const data = await waitForCompleted(urlToken, 20, 1500);
+    setBtnLoading(checkpointBtn, false);
+
+    if (data && data._used) {
+      errorMessage.textContent =
+        "This unlock was already used. Start a new checkpoint for another key.";
+      clearTokenFromUrl();
+      showState(errorState);
+      return;
+    }
+
+    if (data && data.status === "completed") {
+      unlockToken = urlToken;
+      sessionStorage.setItem("unlock_token", urlToken);
+      clearTokenFromUrl();
+      showState(idleState);
+      return;
+    }
+
+    errorMessage.textContent =
+      "Checkpoint not confirmed yet. Make sure LootLabs postback is set, then try Start Checkpoint again.";
+    clearTokenFromUrl();
+    showState(errorState);
+    return;
+  }
+
   try {
     const data = await checkSession(candidate);
     if (data.success && data.status === "completed" && !data.used) {
       unlockToken = candidate;
       sessionStorage.setItem("unlock_token", candidate);
-      if (urlToken) clearTokenFromUrl();
       showState(idleState);
       return;
     }
@@ -259,6 +312,5 @@ retryBtn.addEventListener("click", () => {
 
   unlockToken = null;
   sessionStorage.removeItem("unlock_token");
-  clearTokenFromUrl();
   showState(gateState);
 })();
