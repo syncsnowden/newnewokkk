@@ -12,45 +12,60 @@ const SITE_URL = (process.env.SITE_URL || "").replace(/\/$/, "");
 async function encryptDestination(destinationUrl) {
   const url = "https://creators.lootlabs.gg/api/public/url_encryptor";
 
-  const postRes = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOOTLABS_API_KEY}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      destination_url: destinationUrl,
-      api_token: LOOTLABS_API_KEY,
-    }),
-  });
+  let lastErr = null;
 
-  if (postRes.ok) {
-    const data = await postRes.json();
-    if (data.message && data.type !== "error") {
+  try {
+    const postRes = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOOTLABS_API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        destination_url: destinationUrl,
+        api_token: LOOTLABS_API_KEY,
+      }),
+    });
+
+    const text = await postRes.text();
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {}
+
+    if (postRes.ok && data && data.message && data.type !== "error") {
       return String(data.message);
     }
+    lastErr = `POST ${postRes.status}: ${text.slice(0, 200)}`;
+  } catch (e) {
+    lastErr = `POST network: ${e.message}`;
   }
 
-  const getUrl =
-    `${url}?destination_url=${encodeURIComponent(destinationUrl)}` +
-    `&api_token=${encodeURIComponent(LOOTLABS_API_KEY)}`;
+  try {
+    const getUrl =
+      `${url}?destination_url=${encodeURIComponent(destinationUrl)}` +
+      `&api_token=${encodeURIComponent(LOOTLABS_API_KEY)}`;
 
-  const getRes = await fetch(getUrl, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
+    const getRes = await fetch(getUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    const text = await getRes.text();
+    let data = null;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {}
 
-  if (!getRes.ok) {
-    const text = await getRes.text().catch(() => "");
-    throw new Error(`LootLabs encrypt failed: ${getRes.status} ${text}`);
+    if (getRes.ok && data && data.message && data.type !== "error") {
+      return String(data.message);
+    }
+    lastErr = `GET ${getRes.status}: ${text.slice(0, 200)}`;
+  } catch (e) {
+    lastErr = `GET network: ${e.message}`;
   }
 
-  const data = await getRes.json();
-  if (!data.message || data.type === "error") {
-    throw new Error(String(data.message || "LootLabs encrypt error"));
-  }
-  return String(data.message);
+  throw new Error(lastErr || "LootLabs encrypt failed");
 }
 
 module.exports = async function handler(req, res) {
@@ -87,17 +102,28 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ success: false, message: "Method not allowed" });
     }
 
-    if (!LOOTLABS_API_KEY || !LOOTLABS_LINK) {
+    if (!LOOTLABS_API_KEY) {
       return res.status(500).json({
         success: false,
-        message: "LOOTLABS_API_KEY or LOOTLABS_LINK not configured",
+        message: "Missing env: LOOTLABS_API_KEY",
       });
     }
-
+    if (!LOOTLABS_LINK) {
+      return res.status(500).json({
+        success: false,
+        message: "Missing env: LOOTLABS_LINK",
+      });
+    }
     if (!SITE_URL) {
       return res.status(500).json({
         success: false,
-        message: "SITE_URL env var is required (e.g. https://sppirithub.vercel.app)",
+        message: "Missing env: SITE_URL (set to https://sppirithub.vercel.app)",
+      });
+    }
+    if (!process.env.PASTEFY_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "Missing env: PASTEFY_API_KEY",
       });
     }
 
@@ -106,10 +132,19 @@ module.exports = async function handler(req, res) {
       req.socket?.remoteAddress ||
       "unknown";
 
-    const db = await loadDb();
+    let db;
+    try {
+      db = await loadDb();
+    } catch (e) {
+      console.error("loadDb:", e);
+      return res.status(500).json({
+        success: false,
+        message: "Database error: " + (e.message || String(e)),
+      });
+    }
+
     const now = Math.floor(Date.now() / 1000);
     const sessionId = generateSessionId();
-
     const unlockUrl = `${SITE_URL}/?token=${sessionId}`;
 
     let encrypted;
@@ -119,7 +154,7 @@ module.exports = async function handler(req, res) {
       console.error("encrypt:", err);
       return res.status(502).json({
         success: false,
-        message: "Failed to create protected link. Check LOOTLABS_API_KEY. " + (err.message || ""),
+        message: "LootLabs encrypt failed: " + (err.message || String(err)),
       });
     }
 
@@ -143,9 +178,17 @@ module.exports = async function handler(req, res) {
       unlock_expires: null,
     };
 
-    await saveDb(db);
+    try {
+      await saveDb(db);
+    } catch (e) {
+      console.error("saveDb:", e);
+      return res.status(500).json({
+        success: false,
+        message: "Database save error: " + (e.message || String(e)),
+      });
+    }
 
-    console.log("session created", sessionId, "unlock→", unlockUrl);
+    console.log("session created", sessionId, "→", unlockUrl);
 
     return res.json({
       success: true,
@@ -156,6 +199,9 @@ module.exports = async function handler(req, res) {
     });
   } catch (err) {
     console.error("session:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Server error: " + (err.message || String(err)),
+    });
   }
 };
