@@ -19,22 +19,11 @@
       --text-dim: #555555;
       --white: #ffffff;
       --black: #000000;
-      --accent: #ffffff;
-      --danger: #ff4444;
       --radius: 12px;
       --radius-sm: 8px;
     }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
@@ -48,7 +37,6 @@
       position: relative;
       overflow: hidden;
     }
-
     body::before {
       content: '';
       position: fixed;
@@ -60,7 +48,6 @@
       pointer-events: none;
       z-index: 0;
     }
-
     body::after {
       content: '';
       position: fixed;
@@ -73,7 +60,6 @@
       pointer-events: none;
       z-index: 0;
     }
-
     .card {
       position: relative;
       z-index: 1;
@@ -87,51 +73,38 @@
         0 0 0 1px rgba(255,255,255,0.03),
         0 24px 48px -12px rgba(0,0,0,0.6);
     }
-
-    header {
-      text-align: center;
-      margin-bottom: 36px;
-    }
-
+    header { text-align: center; margin-bottom: 36px; }
     .logo {
       display: inline-flex;
       align-items: center;
       gap: 12px;
       margin-bottom: 8px;
     }
-
     .logo img {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       object-fit: contain;
       border-radius: 10px;
     }
-
     .logo h1 {
       font-size: 22px;
       font-weight: 700;
       letter-spacing: -0.4px;
       color: var(--white);
     }
-
     .subtitle {
       font-size: 13px;
       color: var(--text-muted);
       font-weight: 400;
       letter-spacing: 0.2px;
     }
-
     .state {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 20px;
     }
-
-    .state.hidden {
-      display: none;
-    }
-
+    .state.hidden { display: none; }
     .notice {
       width: 100%;
       background: rgba(255,255,255,0.03);
@@ -143,12 +116,7 @@
       color: var(--text-muted);
       text-align: center;
     }
-
-    .notice strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
+    .notice strong { color: var(--text); font-weight: 600; }
     .btn {
       display: inline-flex;
       align-items: center;
@@ -156,7 +124,7 @@
       gap: 8px;
       width: 100%;
       height: 48px;
- dual: none;
+      border: none;
       border-radius: var(--radius-sm);
       font-family: inherit;
       font-size: 14px;
@@ -166,28 +134,16 @@
       position: relative;
       overflow: hidden;
       text-decoration: none;
+      color: inherit;
     }
-
-    .btn.primary {
-      background: var(--white);
-      color: var(--black);
-    }
-
+    .btn.primary { background: var(--white); color: var(--black); }
     .btn.primary:hover:not(:disabled) {
       background: #e8e8e8;
       transform: translateY(-1px);
       box-shadow: 0 8px 20px -6px rgba(255,255,255,0.25);
     }
-
-    .btn.primary:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    .btn.primary:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
+    .btn.primary:active:not(:disabled) { transform: translateY(0); }
+    .btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn.secondary {
       background: transparent;
       color: var(--text);
@@ -197,12 +153,10 @@
       padding: 0 14px;
       font-size: 13px;
     }
-
     .btn.secondary:hover {
       border-color: var(--border-hover);
       background: rgba(255,255,255,0.04);
     }
-
     .btn.discord {
       background: #5865F2;
       color: #ffffff;
@@ -212,17 +166,12 @@
       font-weight: 600;
       gap: 10px;
     }
-
     .btn.discord:hover {
       background: #4752c4;
       transform: translateY(-1px);
       box-shadow: 0 8px 20px -6px rgba(88, 101, 242, 0.4);
     }
-
-    .btn.discord i {
-      font-size: 16px;
-    }
-
+    .btn.discord i { font-size: 16px; }
     .btn-loader {
       width: 18px;
       height: 18px;
@@ -231,15 +180,8 @@
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
-    .btn-loader.hidden {
-      display: none;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
+    .btn-loader.hidden { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .key-box {
       width: 100%;
       background: var(--bg);
@@ -251,7 +193,6 @@
       gap: 12px;
       align-items: center;
     }
-
     .key-label {
       font-size: 11px;
       font-weight: 600;
@@ -259,7 +200,6 @@
       letter-spacing: 1.2px;
       color: var(--text-dim);
     }
-
     .key-value {
       font-family: 'JetBrains Mono', monospace;
       font-size: 18px;
@@ -270,21 +210,18 @@
       text-align: center;
       user-select: all;
     }
-
     .meta {
       display: flex;
       gap: 24px;
       width: 100%;
       justify-content: center;
     }
-
     .meta-item {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 4px;
     }
-
     .meta-label {
       font-size: 11px;
       color: var(--text-dim);
@@ -292,14 +229,12 @@
       letter-spacing: 0.8px;
       font-weight: 500;
     }
-
     .meta-value {
       font-family: 'JetBrains Mono', monospace;
       font-size: 15px;
       font-weight: 500;
       color: var(--text);
     }
-
     .badge {
       display: inline-flex;
       align-items: center;
@@ -312,7 +247,6 @@
       padding: 3px 10px;
       border-radius: 20px;
     }
-
     .badge::before {
       content: '';
       width: 6px;
@@ -321,7 +255,6 @@
       background: #4ade80;
       box-shadow: 0 0 6px #4ade80;
     }
-
     .hint {
       font-size: 12px;
       color: var(--text-dim);
@@ -329,20 +262,16 @@
       line-height: 1.5;
       max-width: 280px;
     }
-
-    .cooldown-icon,
-    .error-icon {
+    .cooldown-icon, .error-icon, .gate-icon {
       font-size: 32px;
       line-height: 1;
       opacity: 0.7;
     }
-
     .state h2 {
       font-size: 18px;
       font-weight: 600;
       letter-spacing: -0.3px;
     }
-
     .info {
       font-size: 13.5px;
       color: var(--text-muted);
@@ -350,7 +279,6 @@
       line-height: 1.55;
       max-width: 300px;
     }
-
     footer {
       margin-top: 28px;
       padding-top: 20px;
@@ -360,37 +288,21 @@
       align-items: center;
       gap: 14px;
     }
-
-    .footer-links {
-      width: 100%;
-    }
-
+    .footer-links { width: 100%; }
     .made-by {
       font-size: 12px;
       color: var(--text-dim);
       letter-spacing: 0.2px;
     }
-
-    .made-by span {
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
+    .made-by span { color: var(--text-muted); font-weight: 500; }
     .footer-note {
       font-size: 11px;
       color: var(--text-dim);
       letter-spacing: 0.2px;
     }
-
     @media (max-width: 480px) {
-      .card {
-        padding: 32px 24px 24px;
-        border-radius: 16px;
-      }
-
-      .key-value {
-        font-size: 15px;
-      }
+      .card { padding: 32px 24px 24px; border-radius: 16px; }
+      .key-value { font-size: 15px; }
     }
   </style>
 </head>
@@ -398,15 +310,28 @@
   <main class="card">
     <header>
       <div class="logo">
-        <img src="spiritlogo.jpg" alt="Spirit" />
+        <img src="spiritlogo.png" alt="Spirit" />
         <h1>Spirit</h1>
       </div>
       <p class="subtitle">Key Generator</p>
     </header>
 
-    <section id="idle-state" class="state">
+    <section id="gate-state" class="state">
+      <div class="gate-icon">🔒</div>
+      <h2>Checkpoint Required</h2>
       <div class="notice">
-        Keys last <strong>24 hours</strong> only.<br />
+        Complete the LootLabs checkpoint to unlock key generation.<br />
+        Keys last <strong>24 hours</strong> · <strong>1 key per 24 hours</strong>.
+      </div>
+      <button id="checkpoint-btn" class="btn primary" type="button">
+        <span class="btn-text">Start Checkpoint</span>
+        <span class="btn-loader hidden"></span>
+      </button>
+    </section>
+
+    <section id="idle-state" class="state hidden">
+      <div class="notice">
+        Checkpoint completed. Keys last <strong>24 hours</strong> only.<br />
         You can generate <strong>1 key every 24 hours</strong>.
       </div>
       <button id="generate-btn" class="btn primary" type="button">
@@ -464,7 +389,6 @@
       <p class="footer-note">Keys expire after 24 hours · One key per device</p>
     </footer>
   </main>
-
   <script src="script.js"></script>
 </body>
 </html>
