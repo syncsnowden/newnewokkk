@@ -8,14 +8,23 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const q = req.method === "POST" ? { ...(req.query || {}), ...(req.body || {}) } : req.query || {};
+    const q = {
+      ...(req.query || {}),
+      ...((req.method === "POST" && req.body) || {}),
+    };
 
-    const clickId = String(q.click_id || q.clickid || q.puid || "").trim();
-    const ip = String(q.ip || "").trim();
-    const uniqueId = String(q.unique_id || q.uniqueid || "").trim();
+    const clickId = String(
+      q.click_id || q.clickid || q.CLICK_ID || q.puid || q.token || ""
+    ).trim();
+    const ip = String(q.ip || q.IP || "").trim();
+    const uniqueId = String(
+      q.unique_id || q.uniqueid || q.UNIQUE_ID || ""
+    ).trim();
+
+    console.log("postback hit", { clickId, ip, uniqueId, query: q });
 
     if (!clickId) {
-      return res.status(400).send("missing click_id");
+      return res.status(200).send("ok");
     }
 
     const db = await loadDb();
@@ -24,11 +33,6 @@ module.exports = async function handler(req, res) {
 
     if (!session) {
       console.log("postback: unknown session", clickId);
-      return res.status(200).send("ok");
-    }
-
-    if ((session.expires || 0) <= now && session.status !== "completed") {
-      console.log("postback: expired session", clickId);
       return res.status(200).send("ok");
     }
 
@@ -46,7 +50,7 @@ module.exports = async function handler(req, res) {
     db.sessions[clickId] = session;
     await saveDb(db);
 
-    console.log("postback: completed", clickId, "ip=", session.completed_ip);
+    console.log("postback: completed", clickId);
     return res.status(200).send("ok");
   } catch (err) {
     console.error("postback:", err);
