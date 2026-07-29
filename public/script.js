@@ -116,29 +116,21 @@ function clearTokenFromUrl() {
   window.history.replaceState({}, "", url.pathname + url.search);
 }
 
-async function checkSession(token) {
-  const res = await fetch(`${API_BASE}/api/session?id=${encodeURIComponent(token)}`);
+async function checkSession(token, claim) {
+  const q = claim ? "&claim=1" : "";
+  const res = await fetch(
+    `${API_BASE}/api/session?id=${encodeURIComponent(token)}${q}`
+  );
   return res.json();
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function waitForCompleted(token, attempts = 20, delayMs = 1500) {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const data = await checkSession(token);
-      if (data.success && data.status === "completed" && !data.used) {
-        return data;
-      }
-      if (data.success && data.used) {
-        return { ...data, _used: true };
-      }
-    } catch (_) {}
-    await sleep(delayMs);
-  }
-  return null;
+async function claimSession(token) {
+  const res = await fetch(`${API_BASE}/api/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "claim", token }),
+  });
+  return res.json();
 }
 
 async function startCheckpoint() {
@@ -269,15 +261,24 @@ retryBtn.addEventListener("click", () => {
   if (urlToken) {
     const notice = document.querySelector("#gate-state .notice");
     if (notice) {
-      notice.innerHTML = "Verifying checkpoint… please wait a few seconds.";
+      notice.innerHTML = "Verifying checkpoint… please wait.";
     }
     showState(gateState);
     setBtnLoading(checkpointBtn, true);
 
-    const data = await waitForCompleted(urlToken, 20, 1500);
+    let data = null;
+    try {
+      data = await claimSession(urlToken);
+    } catch (_) {}
+    if (!data || !data.success) {
+      try {
+        data = await checkSession(urlToken, true);
+      } catch (_) {}
+    }
+
     setBtnLoading(checkpointBtn, false);
 
-    if (data && data._used) {
+    if (data && data.used) {
       errorMessage.textContent =
         "This unlock was already used. Start a new checkpoint for another key.";
       clearTokenFromUrl();
@@ -285,7 +286,7 @@ retryBtn.addEventListener("click", () => {
       return;
     }
 
-    if (data && data.status === "completed") {
+    if (data && data.success && data.status === "completed") {
       unlockToken = urlToken;
       sessionStorage.setItem("unlock_token", urlToken);
       clearTokenFromUrl();
@@ -293,15 +294,22 @@ retryBtn.addEventListener("click", () => {
       return;
     }
 
-    errorMessage.textContent =
-      "Checkpoint not confirmed yet. Make sure LootLabs postback is set, then try Start Checkpoint again.";
+    if (data && data.status === "missing") {
+      errorMessage.textContent =
+        "Session expired or not found. Please Start Checkpoint again.";
+      clearTokenFromUrl();
+      showState(errorState);
+      return;
+    }
+
+    errorMessage.textContent = "Could not unlock. Try Start Checkpoint again.";
     clearTokenFromUrl();
     showState(errorState);
     return;
   }
 
   try {
-    const data = await checkSession(candidate);
+    const data = await checkSession(candidate, false);
     if (data.success && data.status === "completed" && !data.used) {
       unlockToken = candidate;
       sessionStorage.setItem("unlock_token", candidate);
