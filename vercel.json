@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/status/:key", "destination": "/api/status?key=:key" }
+  ]
+}

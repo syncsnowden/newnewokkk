@@ -1,0 +1,9 @@
+{
+  "name": "hwid-key-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "24h HWID-locked key system – Vercel + Pastefy",
+  "engines": {
+    "node": ">=18"
+  }
+}
