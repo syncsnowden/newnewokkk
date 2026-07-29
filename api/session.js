@@ -3,6 +3,7 @@ const {
   saveDb,
   generateSessionId,
   SESSION_TTL,
+  UNLOCK_TTL,
 } = require("../lib/db");
 
 const LOOTLABS_API_KEY = process.env.LOOTLABS_API_KEY || "";
@@ -11,7 +12,6 @@ const SITE_URL = (process.env.SITE_URL || "").replace(/\/$/, "");
 
 async function encryptDestination(destinationUrl) {
   const url = "https://creators.lootlabs.gg/api/public/url_encryptor";
-
   let lastErr = null;
 
   try {
@@ -27,13 +27,9 @@ async function encryptDestination(destinationUrl) {
         api_token: LOOTLABS_API_KEY,
       }),
     });
-
     const text = await postRes.text();
     let data = null;
-    try {
-      data = JSON.parse(text);
-    } catch (_) {}
-
+    try { data = JSON.parse(text); } catch (_) {}
     if (postRes.ok && data && data.message && data.type !== "error") {
       return String(data.message);
     }
@@ -46,17 +42,10 @@ async function encryptDestination(destinationUrl) {
     const getUrl =
       `${url}?destination_url=${encodeURIComponent(destinationUrl)}` +
       `&api_token=${encodeURIComponent(LOOTLABS_API_KEY)}`;
-
-    const getRes = await fetch(getUrl, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
+    const getRes = await fetch(getUrl, { headers: { Accept: "application/json" } });
     const text = await getRes.text();
     let data = null;
-    try {
-      data = JSON.parse(text);
-    } catch (_) {}
-
+    try { data = JSON.parse(text); } catch (_) {}
     if (getRes.ok && data && data.message && data.type !== "error") {
       return String(data.message);
     }
@@ -66,6 +55,14 @@ async function encryptDestination(destinationUrl) {
   }
 
   throw new Error(lastErr || "LootLabs encrypt failed");
+}
+
+function markCompleted(session, now) {
+  session.status = "completed";
+  session.completed_at = now;
+  session.unlock_expires = now + UNLOCK_TTL;
+  session.expires = Math.max(session.expires || 0, now + UNLOCK_TTL);
+  return session;
 }
 
 module.exports = async function handler(req, res) {
@@ -78,6 +75,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const sessionId = String(req.query.id || req.query.session || "").trim();
+      const claim = String(req.query.claim || "") === "1";
       if (!sessionId) {
         return res.status(400).json({ success: false, message: "session id required" });
       }
@@ -88,6 +86,12 @@ module.exports = async function handler(req, res) {
 
       if (!session || (session.expires || 0) <= now) {
         return res.json({ success: true, status: "missing" });
+      }
+
+      if (claim && session.status === "pending" && !session.used) {
+        markCompleted(session, now);
+        db.sessions[sessionId] = session;
+        await saveDb(db);
       }
 
       return res.json({
@@ -102,29 +106,42 @@ module.exports = async function handler(req, res) {
       return res.status(405).json({ success: false, message: "Method not allowed" });
     }
 
-    if (!LOOTLABS_API_KEY) {
-      return res.status(500).json({
-        success: false,
-        message: "Missing env: LOOTLABS_API_KEY",
+    const body = req.body || {};
+    if (body.action === "claim" && body.token) {
+      const sessionId = String(body.token).trim();
+      const db = await loadDb();
+      const now = Math.floor(Date.now() / 1000);
+      const session = db.sessions[sessionId];
+
+      if (!session || (session.expires || 0) <= now) {
+        return res.json({ success: false, status: "missing", message: "Session expired or missing" });
+      }
+      if (session.used) {
+        return res.json({ success: true, status: "completed", used: true });
+      }
+      if (session.status !== "completed") {
+        markCompleted(session, now);
+        db.sessions[sessionId] = session;
+        await saveDb(db);
+      }
+      return res.json({
+        success: true,
+        status: session.status,
+        used: !!session.used,
       });
+    }
+
+    if (!LOOTLABS_API_KEY) {
+      return res.status(500).json({ success: false, message: "Missing env: LOOTLABS_API_KEY" });
     }
     if (!LOOTLABS_LINK) {
-      return res.status(500).json({
-        success: false,
-        message: "Missing env: LOOTLABS_LINK",
-      });
+      return res.status(500).json({ success: false, message: "Missing env: LOOTLABS_LINK" });
     }
     if (!SITE_URL) {
-      return res.status(500).json({
-        success: false,
-        message: "Missing env: SITE_URL (set to https://sppirithub.vercel.app)",
-      });
+      return res.status(500).json({ success: false, message: "Missing env: SITE_URL" });
     }
     if (!process.env.PASTEFY_API_KEY) {
-      return res.status(500).json({
-        success: false,
-        message: "Missing env: PASTEFY_API_KEY",
-      });
+      return res.status(500).json({ success: false, message: "Missing env: PASTEFY_API_KEY" });
     }
 
     const clientIp =
@@ -136,11 +153,7 @@ module.exports = async function handler(req, res) {
     try {
       db = await loadDb();
     } catch (e) {
-      console.error("loadDb:", e);
-      return res.status(500).json({
-        success: false,
-        message: "Database error: " + (e.message || String(e)),
-      });
+      return res.status(500).json({ success: false, message: "Database error: " + (e.message || String(e)) });
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -151,21 +164,16 @@ module.exports = async function handler(req, res) {
     try {
       encrypted = await encryptDestination(unlockUrl);
     } catch (err) {
-      console.error("encrypt:", err);
       return res.status(502).json({
         success: false,
         message: "LootLabs encrypt failed: " + (err.message || String(err)),
       });
     }
 
-    const dataParam = encrypted.includes("%")
-      ? encrypted
-      : encodeURIComponent(encrypted);
-
+    const dataParam = encrypted.includes("%") ? encrypted : encodeURIComponent(encrypted);
     const base = LOOTLABS_LINK.replace(/[?&]$/, "");
     const separator = base.includes("?") ? "&" : "?";
-    const lootlabsUrl =
-      `${base}${separator}puid=${encodeURIComponent(sessionId)}&data=${dataParam}`;
+    const lootlabsUrl = `${base}${separator}puid=${encodeURIComponent(sessionId)}&data=${dataParam}`;
 
     db.sessions[sessionId] = {
       status: "pending",
@@ -181,14 +189,8 @@ module.exports = async function handler(req, res) {
     try {
       await saveDb(db);
     } catch (e) {
-      console.error("saveDb:", e);
-      return res.status(500).json({
-        success: false,
-        message: "Database save error: " + (e.message || String(e)),
-      });
+      return res.status(500).json({ success: false, message: "Database save error: " + (e.message || String(e)) });
     }
-
-    console.log("session created", sessionId, "→", unlockUrl);
 
     return res.json({
       success: true,
@@ -198,7 +200,6 @@ module.exports = async function handler(req, res) {
       expires_in: SESSION_TTL,
     });
   } catch (err) {
-    console.error("session:", err);
     return res.status(500).json({
       success: false,
       message: "Server error: " + (err.message || String(err)),
