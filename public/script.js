@@ -1,5 +1,12 @@
 const API_BASE = "";
 
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  const span = document.getElementById("toast-msg");
+  if (span) span.textContent = msg;
+  if (el) { el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2000); }
+}
+
 const gateState = document.getElementById("gate-state");
 const idleState = document.getElementById("idle-state");
 const resultState = document.getElementById("result-state");
@@ -217,23 +224,16 @@ checkpointBtn.addEventListener("click", startCheckpoint);
 generateBtn.addEventListener("click", generateKey);
 copyBtn.addEventListener("click", async () => {
   const text = keyValue.textContent;
-  const icon = copyBtn.querySelector("i");
-  const setText = (t) => {
-    if (icon) copyBtn.innerHTML = icon.outerHTML + " " + t;
-    else copyBtn.textContent = t;
-  };
   try {
     await navigator.clipboard.writeText(text);
-    setText("Copied!");
-    setTimeout(() => setText("Copy"), 1500);
+    showToast("Copied to clipboard");
   } catch {
     const range = document.createRange();
     range.selectNode(keyValue);
     window.getSelection().removeAllRanges();
     window.getSelection().addRange(range);
     document.execCommand("copy");
-    setText("Copied!");
-    setTimeout(() => setText("Copy"), 1500);
+    showToast("Copied to clipboard");
   }
 });
 retryBtn.addEventListener("click", () => {
