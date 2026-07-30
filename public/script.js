@@ -217,18 +217,23 @@ checkpointBtn.addEventListener("click", startCheckpoint);
 generateBtn.addEventListener("click", generateKey);
 copyBtn.addEventListener("click", async () => {
   const text = keyValue.textContent;
+  const icon = copyBtn.querySelector("i");
+  const setText = (t) => {
+    if (icon) copyBtn.innerHTML = icon.outerHTML + " " + t;
+    else copyBtn.textContent = t;
+  };
   try {
     await navigator.clipboard.writeText(text);
-    copyBtn.textContent = "Copied!";
-    setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+    setText("Copied!");
+    setTimeout(() => setText("Copy"), 1500);
   } catch {
     const range = document.createRange();
     range.selectNode(keyValue);
     window.getSelection().removeAllRanges();
     window.getSelection().addRange(range);
     document.execCommand("copy");
-    copyBtn.textContent = "Copied!";
-    setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+    setText("Copied!");
+    setTimeout(() => setText("Copy"), 1500);
   }
 });
 retryBtn.addEventListener("click", () => {
